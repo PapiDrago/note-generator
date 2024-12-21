@@ -10,6 +10,7 @@ def addDict(messages, content, role):
 
 
 def num_tokens_from_messages(messages, model):
+    # Pasted from https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
     try:
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:
