@@ -1,6 +1,7 @@
 from openai import OpenAI
 import time
 import os
+import sys
 import tiktoken
 
 def addDict(messages, content, role):
@@ -64,52 +65,56 @@ TOKEN_LIMIT = 30000-6000
 #Input-Output token limit is 30000. I do not know why when I prompt with about 24000 token then the answer fail despite of knowing that the output token are about 400.
 #Actually 30000 is the token per minute limit! Is this number cumulating from output token?
 #TPM = 30000
-input_path = "./pc1.txt"
-base_name, ext = os.path.splitext(input_path)  # Split into name and extension
-output_path = f"{base_name}_sbobina{ext}" 
-infile = open(input_path, 'r', encoding='utf-8')
-messages = []
-DEV_MESSAGE = "I am going to provide you with an audio transcription of a university lecture. Your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable and coherent with the context. Do not summarize, shorten, or remove any part of the content. Preserve the original meaning and structure of the text while making it clear and consistent."
-REFRESH_MESSAGE = "Remember that your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable and coherent with the context. Do not summarize, shorten, or remove any part of the content. Preserve the original meaning and structure of the text while making it clear and consistent."
-messages.append({"role": "developer", "content": DEV_MESSAGE})
 
-ex_start_time = time.time()
-start_time = ex_start_time
+if len(sys.argv) < 2 or len(sys.argv) > 3:
+    print("Usage: python note-generator.py <input_filepath>")
+else:
+    input_path = sys.argv[1]
+    base_name, ext = os.path.splitext(input_path)  # Split into name and extension
+    output_path = f"{base_name}_sbobina{ext}" 
+    infile = open(input_path, 'r', encoding='utf-8')
+    messages = []
+    DEV_MESSAGE = "I am going to provide you with an audio transcription of a university lecture. Your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable and coherent with the context. Do not summarize, shorten, or remove any part of the content. Preserve the original meaning and structure of the text while making it clear and consistent."
+    REFRESH_MESSAGE = "Remember that your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable and coherent with the context. Do not summarize, shorten, or remove any part of the content. Preserve the original meaning and structure of the text while making it clear and consistent."
 
-token_bucket = 0
-with open(output_path, 'w',encoding='utf-8') as outfile:
-    while True:
-        chunk = infile.read(CHUNK_SIZE)
-        if not chunk:
-            break
-        messages.append({"role": "developer", "content": DEV_MESSAGE})
-        messages = addDict(messages, chunk, "user")
-        if num_tokens_from_messages(messages, MODEL) > TOKEN_LIMIT:
-             print("Number of tokens would have exceeded!")
-             messages = messages[len(messages)//2:]
-        token_bucket += (num_tokens_from_messages(messages, MODEL) + 500)
-        print(f'token bucket= {token_bucket}')
-        #elapsed_time = time.time() - start_time
-        # if elapsed_time >= 300:
-        #     print(f"Elapsed time= {(elapsed_time): .2f}")
-        #     print(f"Pausing for {STOP_DURATION/60} minutes to slow down requests.")
-        #     time.sleep(STOP_DURATION)
-        #     start_time = time.time()
 
-        completion = client.chat.completions.create( #completion = response
-        model= MODEL,
-        messages = messages
-        )
-        print(f'Number of tokens used in obtaining the answer= {completion.usage.total_tokens}')
-        token_bucket -= (num_tokens_from_messages(messages, MODEL) + 500)
-        token_bucket += completion.usage.total_tokens
-        chatGPT_answer = completion.choices[0].message.content
-        outfile.write(chatGPT_answer)
-        messages = addDict(messages, chatGPT_answer, "assistant")
+    ex_start_time = time.time()
+    start_time = ex_start_time
 
-ex_end_time = time.time()
-print(f"Execution time= {(ex_end_time-ex_start_time): .2f}")
-infile.close()
+    token_bucket = 0
+    with open(output_path, 'w',encoding='utf-8') as outfile:
+        while True:
+            chunk = infile.read(CHUNK_SIZE)
+            if not chunk:
+                break
+            messages.append({"role": "developer", "content": DEV_MESSAGE})
+            messages = addDict(messages, chunk, "user")
+            if num_tokens_from_messages(messages, MODEL) > TOKEN_LIMIT:
+                print("Number of tokens would have exceeded!")
+                messages = messages[len(messages)//2:]
+            token_bucket += (num_tokens_from_messages(messages, MODEL) + 500)
+            print(f'token bucket= {token_bucket}')
+            #elapsed_time = time.time() - start_time
+            # if elapsed_time >= 300:
+            #     print(f"Elapsed time= {(elapsed_time): .2f}")
+            #     print(f"Pausing for {STOP_DURATION/60} minutes to slow down requests.")
+            #     time.sleep(STOP_DURATION)
+            #     start_time = time.time()
+
+            completion = client.chat.completions.create( #completion = response
+            model= MODEL,
+            messages = messages
+            )
+            print(f'Number of tokens used in obtaining the answer= {completion.usage.total_tokens}')
+            token_bucket -= (num_tokens_from_messages(messages, MODEL) + 500)
+            token_bucket += completion.usage.total_tokens
+            chatGPT_answer = completion.choices[0].message.content
+            outfile.write(chatGPT_answer)
+            messages = addDict(messages, chatGPT_answer, "assistant")
+
+    ex_end_time = time.time()
+    print(f"Execution time= {(ex_end_time-ex_start_time): .2f}")
+    infile.close()
 
 '''Notice that requests get disabled after reaching token per minute limit
 without any control after about 10 minutes within the execution of the program.
