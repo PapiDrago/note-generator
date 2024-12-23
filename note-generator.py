@@ -51,6 +51,7 @@ def num_tokens_from_messages(messages, model):
             if key == "name":
                 num_tokens += tokens_per_name
     num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
+    print(f'Number of tokens used by the prompt= {num_tokens}')
     return num_tokens
 
 
@@ -58,8 +59,12 @@ client = OpenAI()
 
 CHUNK_SIZE = 2048
 MODEL = "gpt-4o"
-TOKEN_LIMIT = 30000
-input_path = "./ACA_lesson1-1.txt"
+STOP_DURATION = 300
+TOKEN_LIMIT = 30000-6000 
+#Input-Output token limit is 30000. I do not know why when I prompt with about 24000 token then the answer fail despite of knowing that the output token are about 400.
+#Actually 30000 is the token per minute limit! Is this number cumulating from output token?
+#TPM = 30000
+input_path = "./pc1.txt"
 base_name, ext = os.path.splitext(input_path)  # Split into name and extension
 output_path = f"{base_name}_sbobina{ext}" 
 infile = open(input_path, 'r', encoding='utf-8')
@@ -68,8 +73,10 @@ DEV_MESSAGE = "I am going to provide you with an audio transcription of a univer
 REFRESH_MESSAGE = "Remember that your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable and coherent with the context. Do not summarize, shorten, or remove any part of the content. Preserve the original meaning and structure of the text while making it clear and consistent."
 messages.append({"role": "developer", "content": DEV_MESSAGE})
 
-start_time = time.time()
+ex_start_time = time.time()
+start_time = ex_start_time
 
+token_bucket = 0
 with open(output_path, 'w',encoding='utf-8') as outfile:
     while True:
         chunk = infile.read(CHUNK_SIZE)
@@ -78,15 +85,33 @@ with open(output_path, 'w',encoding='utf-8') as outfile:
         messages.append({"role": "developer", "content": DEV_MESSAGE})
         messages = addDict(messages, chunk, "user")
         if num_tokens_from_messages(messages, MODEL) > TOKEN_LIMIT:
-            messages = messages[len(messages)//2:]
-        completion = client.chat.completions.create(
+             print("Number of tokens would have exceeded!")
+             messages = messages[len(messages)//2:]
+        token_bucket += (num_tokens_from_messages(messages, MODEL) + 500)
+        print(f'token bucket= {token_bucket}')
+        #elapsed_time = time.time() - start_time
+        # if elapsed_time >= 300:
+        #     print(f"Elapsed time= {(elapsed_time): .2f}")
+        #     print(f"Pausing for {STOP_DURATION/60} minutes to slow down requests.")
+        #     time.sleep(STOP_DURATION)
+        #     start_time = time.time()
+
+        completion = client.chat.completions.create( #completion = response
         model= MODEL,
         messages = messages
         )
+        print(f'Number of tokens used in obtaining the answer= {completion.usage.total_tokens}')
+        token_bucket -= (num_tokens_from_messages(messages, MODEL) + 500)
+        token_bucket += completion.usage.total_tokens
         chatGPT_answer = completion.choices[0].message.content
         outfile.write(chatGPT_answer)
         messages = addDict(messages, chatGPT_answer, "assistant")
 
-end_time = time.time()
-print(f"Execution time= {(end_time-start_time): .2f}")
+ex_end_time = time.time()
+print(f"Execution time= {(ex_end_time-ex_start_time): .2f}")
 infile.close()
+
+'''Notice that requests get disabled after reaching token per minute limit
+without any control after about 10 minutes within the execution of the program.
+For this reason I choose to pause it after 5 minutes. It is a lazy solution.
+Actually it still does not work! Coming back to halve the size of messages.''' 
