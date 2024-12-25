@@ -4,6 +4,15 @@ import os
 import sys
 import tiktoken
 
+def getChunk(infile): ##it does not address situation like very long words or file text length < CHUNK_SIZE
+    chunk = infile.read(CHUNK_SIZE)
+    while chunk and chunk[-1] not in [' ', '\n']:
+        new_char = infile.read(1)
+        if not new_char:
+            break
+        chunk = chunk + new_char
+    return chunk
+
 def addDict(messages, content, role):
     element = {"role": role, "content": content+"\n"}
     messages.append(element)
@@ -84,7 +93,7 @@ else:
     token_bucket = 0
     with open(output_path, 'w',encoding='utf-8') as outfile:
         while True:
-            chunk = infile.read(CHUNK_SIZE)
+            chunk = getChunk(infile)
             if not chunk:
                 break
             messages.append({"role": "developer", "content": DEV_MESSAGE})
