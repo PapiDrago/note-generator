@@ -98,10 +98,11 @@ else:
                 break
             messages.append({"role": "developer", "content": DEV_MESSAGE})
             messages = addDict(messages, chunk, "user")
-            if num_tokens_from_messages(messages, MODEL) > TOKEN_LIMIT:
+            num_tokens = num_tokens_from_messages(messages, MODEL)
+            if num_tokens > TOKEN_LIMIT:
                 print("Number of tokens would have exceeded!")
-                messages = messages[len(messages)//2:]
-            token_bucket += (num_tokens_from_messages(messages, MODEL) + 500)
+                messages = messages[(len(messages)//2):]
+            token_bucket += (num_tokens + 500)
             print(f'token bucket= {token_bucket}')
             #elapsed_time = time.time() - start_time
             # if elapsed_time >= 300:
