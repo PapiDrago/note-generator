@@ -4,6 +4,16 @@ import os
 import sys
 import tiktoken
 
+def getChunk(infile): ##it does not address situation like very long words or file text length < CHUNK_SIZE
+    chunk = infile.read(CHUNK_SIZE)
+    while chunk and chunk[-1] not in ['.', '\n']:
+        new_char = infile.read(1)
+        if not new_char:
+            break
+        chunk = chunk + new_char
+    return chunk
+
+
 def addDict(messages, content, role):
     element = {"role": role, "content": content+"\n"}
     messages.append(element)
@@ -82,32 +92,27 @@ else:
     start_time = ex_start_time
 
     token_bucket = 0
-    i = 0
+    #i = 0
     with open(output_path, 'w',encoding='utf-8') as outfile:
         while True:
-            chunk = infile.read(CHUNK_SIZE)
+            chunk = getChunk(infile)
             if not chunk:
                 break
             # if i % 10 and i !=0:
             #     messages = messages[len(messages)//2:]
             # messages.append({"role": "developer", "content": DEV_MESSAGE})
             # messages = addDict(messages, chunk, "user")
-            if num_tokens_from_messages(messages, MODEL) > TOKEN_LIMIT:
+            tokens_number = num_tokens_from_messages(messages, MODEL)
+            if tokens_number > TOKEN_LIMIT:
                 print("Number of tokens would have exceeded!")
                 messages = messages[len(messages)//2:]
-            token_bucket += (num_tokens_from_messages(messages, MODEL) + 500)
+            token_bucket += (tokens_number + 500)
             print(f'token bucket= {token_bucket}')
-            #elapsed_time = time.time() - start_time
-            # if elapsed_time >= 300:
-            #     print(f"Elapsed time= {(elapsed_time): .2f}")
-            #     print(f"Pausing for {STOP_DURATION/60} minutes to slow down requests.")
-            #     time.sleep(STOP_DURATION)
-            #     start_time = time.time()
 
             completion = client.chat.completions.create( #completion = response
             model= MODEL,
             messages = [{"role": 'developer', "content": DEV_MESSAGE},
-                        {"role": 'user', "content": chunk+"\n"}]
+                        {"role": 'user', "content": chunk}]
             )
             print(f'Number of tokens used in obtaining the answer= {completion.usage.total_tokens}')
             token_bucket -= (num_tokens_from_messages(messages, MODEL) + 500)
@@ -115,7 +120,7 @@ else:
             chatGPT_answer = completion.choices[0].message.content
             outfile.write(chatGPT_answer)
             #messages = addDict(messages, chatGPT_answer, "assistant")
-            i +=1
+            #i +=1
 
     ex_end_time = time.time()
     print(f"Execution time= {(ex_end_time-ex_start_time): .2f}")
