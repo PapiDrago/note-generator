@@ -82,13 +82,16 @@ else:
     start_time = ex_start_time
 
     token_bucket = 0
+    i = 0
     with open(output_path, 'w',encoding='utf-8') as outfile:
         while True:
             chunk = infile.read(CHUNK_SIZE)
             if not chunk:
                 break
-            messages.append({"role": "developer", "content": DEV_MESSAGE})
-            messages = addDict(messages, chunk, "user")
+            # if i % 10 and i !=0:
+            #     messages = messages[len(messages)//2:]
+            # messages.append({"role": "developer", "content": DEV_MESSAGE})
+            # messages = addDict(messages, chunk, "user")
             if num_tokens_from_messages(messages, MODEL) > TOKEN_LIMIT:
                 print("Number of tokens would have exceeded!")
                 messages = messages[len(messages)//2:]
@@ -103,14 +106,16 @@ else:
 
             completion = client.chat.completions.create( #completion = response
             model= MODEL,
-            messages = messages
+            messages = [{"role": 'developer', "content": DEV_MESSAGE},
+                        {"role": 'user', "content": chunk+"\n"}]
             )
             print(f'Number of tokens used in obtaining the answer= {completion.usage.total_tokens}')
             token_bucket -= (num_tokens_from_messages(messages, MODEL) + 500)
             token_bucket += completion.usage.total_tokens
             chatGPT_answer = completion.choices[0].message.content
             outfile.write(chatGPT_answer)
-            messages = addDict(messages, chatGPT_answer, "assistant")
+            #messages = addDict(messages, chatGPT_answer, "assistant")
+            i +=1
 
     ex_end_time = time.time()
     print(f"Execution time= {(ex_end_time-ex_start_time): .2f}")
