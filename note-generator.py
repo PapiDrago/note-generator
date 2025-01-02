@@ -84,7 +84,7 @@ else:
     output_path = f"{base_name}_sbobina{ext}" 
     infile = open(input_path, 'r', encoding='utf-8')
     messages = []
-    DEV_MESSAGE = "I am going to provide you with an audio transcription of a university lecture. Your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable and coherent with the context. Do not summarize, shorten, or remove any part of the content. Preserve the original meaning and structure of the text while making it clear and consistent."
+    DEV_MESSAGE = "I am going to provide you with an audio transcription of a university lecture. Your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable. Do not summarize the content. Preserving the original meaning and structure of the text, phrase it better."
     REFRESH_MESSAGE = "Remember that your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable and coherent with the context. Do not summarize, shorten, or remove any part of the content. Preserve the original meaning and structure of the text while making it clear and consistent."
 
 
