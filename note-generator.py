@@ -6,12 +6,23 @@ import tiktoken
 
 def getChunk(infile): ##it does not address situation like very long words or file text length < CHUNK_SIZE
     chunk = infile.read(CHUNK_SIZE)
-    while chunk and chunk[-1] not in [' ', '\n']:
+    while chunk and chunk[-1] not in ['.', '\n']:
         new_char = infile.read(1)
         if not new_char:
             break
         chunk = chunk + new_char
     return chunk
+
+
+def getChunk(infile): ##it does not address situation like very long words or file text length < CHUNK_SIZE
+    chunk = infile.read(CHUNK_SIZE)
+    while chunk and chunk[-1] not in ['.', '\n']:
+        new_char = infile.read(1)
+        if not new_char:
+            break
+        chunk = chunk + new_char
+    return chunk
+
 
 def addDict(messages, content, role):
     element = {"role": role, "content": content+"\n"}
@@ -68,6 +79,7 @@ def num_tokens_from_messages(messages, model):
 client = OpenAI()
 
 CHUNK_SIZE = 2048
+CONTEXT_LENGTH = 2 * 1 #the number of elements between the developer and the last user prompt
 MODEL = "gpt-4o"
 STOP_DURATION = 300
 TOKEN_LIMIT = 30000-6000 
@@ -83,33 +95,36 @@ else:
     output_path = f"{base_name}_sbobina{ext}" 
     infile = open(input_path, 'r', encoding='utf-8')
     messages = []
-    DEV_MESSAGE = "I am going to provide you with an audio transcription of a university lecture. Your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable and coherent with the context. Do not summarize, shorten, or remove any part of the content. Preserve the original meaning and structure of the text while making it clear and consistent."
+    DEV_MESSAGE = "I am going to provide you with an audio transcription of a university lecture. Your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable. Do not summarize the content. Preserving the original meaning and structure of the text, phrase it better."
     REFRESH_MESSAGE = "Remember that your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable and coherent with the context. Do not summarize, shorten, or remove any part of the content. Preserve the original meaning and structure of the text while making it clear and consistent."
-
+    
+    messages = addDict(messages, DEV_MESSAGE, "developer")
 
     ex_start_time = time.time()
     start_time = ex_start_time
 
     token_bucket = 0
+    #i = 0
     with open(output_path, 'w',encoding='utf-8') as outfile:
         while True:
             chunk = getChunk(infile)
             if not chunk:
                 break
-            messages.append({"role": "developer", "content": DEV_MESSAGE})
+            # if i % 10 and i !=0:
+            #     messages = messages[len(messages)//2:]
+            # messages.append({"role": "developer", "content": DEV_MESSAGE})
+            # messages = addDict(messages, chunk, "user")
+            
             messages = addDict(messages, chunk, "user")
-            num_tokens = num_tokens_from_messages(messages, MODEL)
-            if num_tokens > TOKEN_LIMIT:
+            if len(messages)-2 > CONTEXT_LENGTH:
+                messages[1:CONTEXT_LENGTH+1] = []
+            print(f'length of messages = {len(messages)}')
+            tokens_number = num_tokens_from_messages(messages, MODEL)
+            if tokens_number > TOKEN_LIMIT:
                 print("Number of tokens would have exceeded!")
-                messages = messages[(len(messages)//2):]
-            token_bucket += (num_tokens + 500)
+                messages = messages[len(messages)//2:]
+            token_bucket += (tokens_number + 500)
             print(f'token bucket= {token_bucket}')
-            #elapsed_time = time.time() - start_time
-            # if elapsed_time >= 300:
-            #     print(f"Elapsed time= {(elapsed_time): .2f}")
-            #     print(f"Pausing for {STOP_DURATION/60} minutes to slow down requests.")
-            #     time.sleep(STOP_DURATION)
-            #     start_time = time.time()
 
             completion = client.chat.completions.create( #completion = response
             model= MODEL,
@@ -121,6 +136,7 @@ else:
             chatGPT_answer = completion.choices[0].message.content
             outfile.write(chatGPT_answer)
             messages = addDict(messages, chatGPT_answer, "assistant")
+            #i +=1
 
     ex_end_time = time.time()
     print(f"Execution time= {(ex_end_time-ex_start_time): .2f}")
