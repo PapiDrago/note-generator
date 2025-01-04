@@ -69,6 +69,7 @@ def num_tokens_from_messages(messages, model):
 client = OpenAI()
 
 CHUNK_SIZE = 2048
+CONTEXT_LENGTH = 2 * 1 #the number of elements between the developer and the last user prompt
 MODEL = "gpt-4o"
 STOP_DURATION = 300
 TOKEN_LIMIT = 30000-6000 
@@ -86,7 +87,8 @@ else:
     messages = []
     DEV_MESSAGE = "I am going to provide you with an audio transcription of a university lecture. Your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable. Do not summarize the content. Preserving the original meaning and structure of the text, phrase it better."
     REFRESH_MESSAGE = "Remember that your task is to correct any grammatical, spelling, or formatting errors and ensure the text is readable and coherent with the context. Do not summarize, shorten, or remove any part of the content. Preserve the original meaning and structure of the text while making it clear and consistent."
-
+    
+    messages = addDict(messages, DEV_MESSAGE, "developer")
 
     ex_start_time = time.time()
     start_time = ex_start_time
@@ -102,6 +104,11 @@ else:
             #     messages = messages[len(messages)//2:]
             # messages.append({"role": "developer", "content": DEV_MESSAGE})
             # messages = addDict(messages, chunk, "user")
+            
+            messages = addDict(messages, chunk, "user")
+            if len(messages)-2 > CONTEXT_LENGTH:
+                messages[1:CONTEXT_LENGTH+1] = []
+            print(f'length of messages = {len(messages)}')
             tokens_number = num_tokens_from_messages(messages, MODEL)
             if tokens_number > TOKEN_LIMIT:
                 print("Number of tokens would have exceeded!")
@@ -111,15 +118,14 @@ else:
 
             completion = client.chat.completions.create( #completion = response
             model= MODEL,
-            messages = [{"role": 'developer', "content": DEV_MESSAGE},
-                        {"role": 'user', "content": chunk}]
+            messages = messages
             )
             print(f'Number of tokens used in obtaining the answer= {completion.usage.total_tokens}')
             token_bucket -= (num_tokens_from_messages(messages, MODEL) + 500)
             token_bucket += completion.usage.total_tokens
             chatGPT_answer = completion.choices[0].message.content
             outfile.write(chatGPT_answer)
-            #messages = addDict(messages, chatGPT_answer, "assistant")
+            messages = addDict(messages, chatGPT_answer, "assistant")
             #i +=1
 
     ex_end_time = time.time()
